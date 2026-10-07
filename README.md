@@ -2,8 +2,8 @@
 
 A live classroom demo of problem isomorphs. Students are split into Red and Blue teams and play Pick 15, collectively voting on each move Twitch-Plays-style. Next they play tic-tac-toe. The reveal overlays the magic square on the board and replays the Pick 15 game as tic-tac-toe.
 
-- Students: `https://<user>.github.io/<repo>/`
-- Instructor: `https://<user>.github.io/<repo>/#admin`
+- Students: https://willcrichton.net/tft-game/
+- Instructor: https://willcrichton.net/tft-game/#admin
 
 ## Setup
 
@@ -31,6 +31,7 @@ Both scripts reset the live game afterwards and need `.admin-passphrase` (gitign
 ```sh
 pnpm smoke           # API-level: 6 simulated students play both games through RPCs and Realtime
 pnpm smoke:browser   # real Chrome: admin + 4 student tabs click through both games and the reveal
+BASE_URL=https://willcrichton.net/tft-game/ node scripts/browser-smoke.ts   # same, against the deployed site
 ```
 
 ## Development

@@ -23,7 +23,7 @@ let server = createServer((req, res) => {
   );
   createReadStream(path).pipe(res);
 }).listen(PORT);
-let base = `http://localhost:${PORT}/`;
+let base = process.env.BASE_URL ?? `http://localhost:${PORT}/`;
 
 let check = (cond: boolean, msg: string) => {
   if (!cond) throw new Error(`FAIL: ${msg}`);
