@@ -11,7 +11,6 @@ create table if not exists public.game (
   paused boolean not null default true,
   window_secs numeric not null default 5 check (window_secs > 0),
   gap_secs numeric not null default 2 check (gap_secs >= 0),
-  reveal_step int not null default 0,
   team_epoch int not null default 0
 );
 
@@ -22,6 +21,9 @@ create table if not exists public.players (
   team text not null check (team in ('red', 'blue')),
   created_at timestamptz not null default now()
 );
+
+alter table public.game drop column if exists reveal_step;
+drop function if exists public.admin_reveal(text, int);
 
 alter table public.players add column if not exists last_seen timestamptz default now();
 
@@ -265,7 +267,6 @@ begin
     ns_result = case when phase = 'ns' then null else ns_result end,
     ttt_moves = case when phase = 'ttt' then '{}' else ttt_moves end,
     ttt_result = case when phase = 'ttt' then null else ttt_result end,
-    reveal_step = 0,
     paused = true,
     round = round + 1,
     round_starts_at = null,
@@ -282,13 +283,6 @@ begin
     window_secs = coalesce(p_window_secs, window_secs),
     gap_secs = coalesce(p_gap_secs, gap_secs)
   where id = 1;
-end $$;
-
-create or replace function public.admin_reveal(p_secret text, p_step int) returns void
-language plpgsql security definer set search_path = public as $$
-begin
-  perform assert_admin(p_secret);
-  update game set reveal_step = greatest(0, p_step) where id = 1;
 end $$;
 
 create or replace function public.admin_reshuffle(p_secret text) returns void
@@ -330,7 +324,6 @@ begin
     paused = true,
     round_starts_at = null,
     round_ends_at = null,
-    reveal_step = 0,
     team_epoch = team_epoch + 1
   where id = 1;
 end $$;

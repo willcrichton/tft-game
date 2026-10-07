@@ -78,5 +78,3 @@ export let pickMove = (
   let pool = best === 0 ? legal : legal.filter(m => counts.get(m) === best);
   return pool[Math.floor(rng() * pool.length)];
 };
-
-export let revealSteps = (nsMoves: number[]): number => 2 + nsMoves.length;

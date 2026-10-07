@@ -1,11 +1,9 @@
 import React from "react";
 import {
-  cellOfNumber,
   type GameKind,
   MAGIC,
   outcome,
   type Result,
-  revealSteps,
   type Team,
   teamOfMove
 } from "./logic";
@@ -209,17 +207,9 @@ export let StatusBar = ({
 
 let resultTeam = (r: Result): Team | null => (r === "draw" ? null : r);
 
-export const RULES: Record<GameKind, { title: string; rules: string }> = {
-  ns: {
-    title: "Pick 15",
-    rules:
-      "Teams take turns claiming numbers from 1 to 9. The first team to hold any three numbers that add up to exactly 15 wins."
-  },
-  ttt: {
-    title: "Tic-tac-toe",
-    rules:
-      "Teams take turns claiming squares. The first team to get three in a row wins. Red is X, Blue is O."
-  }
+export const TITLES: Record<GameKind, string> = {
+  ns: "Pick 15",
+  ttt: "Tic-tac-toe"
 };
 
 export interface ScreenProps {
@@ -253,8 +243,7 @@ export let GameScreen = ({
   };
   return (
     <div className={`screen ${kind}`}>
-      <h1>{RULES[kind].title}</h1>
-      <p className="rules">{RULES[kind].rules}</p>
+      <h1>{TITLES[kind]}</h1>
       <StatusBar s={s} kind={kind} myTeam={myTeam} />
       {kind === "ns" ? (
         <NumberStrip moves={moves} winning={winning} last={last} {...pick} />
@@ -265,64 +254,16 @@ export let GameScreen = ({
   );
 };
 
-export let revealCaption = (g: GameRow): string => {
-  let step = Math.min(g.reveal_step, revealSteps(g.ns_moves));
-  if (step === 0) return "Here's the tic-tac-toe game you just played.";
-  if (step === 1)
-    return "Now put a number in each square. Every row, column, and diagonal adds up to 15.";
-  let k = step - 2;
-  if (k === 0)
-    return "Let's replay the Pick 15 game, putting each number in its square…";
-  let n = g.ns_moves[k - 1];
-  let who = teamName(teamOfMove(k - 1));
-  if (k === g.ns_moves.length) {
-    let o = outcome("ns", g.ns_moves);
-    return o.result && o.result !== "draw"
-      ? `${who} took ${n}. Three that add to 15 make three in a row. The two games were the same game all along.`
-      : `${who} took ${n}. A draw in Pick 15 is a draw in tic-tac-toe. Same game, different representation.`;
-  }
-  return `${who} took ${n}.`;
-};
-
-export let RevealScreen = ({ g }: { g: GameRow }) => {
-  let step = Math.min(g.reveal_step, revealSteps(g.ns_moves));
-  let caption = revealCaption(g);
-  if (step <= 1) {
-    let o = outcome("ttt", g.ttt_moves);
-    return (
-      <div className="screen reveal">
-        <h1>The reveal</h1>
-        <p className="caption">{caption}</p>
-        <div className="reveal-row">
-          <Board cells={g.ttt_moves} overlay={step === 1} winning={o.winning} />
-        </div>
-      </div>
-    );
-  }
-  let shown = g.ns_moves.slice(0, step - 2);
-  let done = shown.length === g.ns_moves.length;
-  let o = outcome("ns", shown);
-  let winningNums = done ? o.winning : null;
-  return (
-    <div className="screen reveal">
-      <h1>The reveal</h1>
-      <p className="caption">{caption}</p>
-      <div className="reveal-row">
-        <NumberStrip
-          moves={shown}
-          winning={winningNums}
-          last={shown[shown.length - 1] ?? null}
-        />
-        <Board
-          cells={shown.map(cellOfNumber)}
-          overlay
-          winning={winningNums?.map(cellOfNumber)}
-          last={shown.length > 0 ? cellOfNumber(shown[shown.length - 1]) : null}
-        />
-      </div>
-    </div>
-  );
-};
+export let RevealScreen = ({ g }: { g: GameRow }) => (
+  <div className="screen reveal">
+    <h1>{TITLES.ttt}</h1>
+    <Board
+      cells={g.ttt_moves}
+      overlay
+      winning={outcome("ttt", g.ttt_moves).winning}
+    />
+  </div>
+);
 
 export let Lobby = ({ myTeam }: { myTeam: Team | null }) => (
   <div className="screen lobby">

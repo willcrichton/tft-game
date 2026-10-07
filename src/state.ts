@@ -22,7 +22,6 @@ export interface GameRow {
   paused: boolean;
   window_secs: number;
   gap_secs: number;
-  reveal_step: number;
   team_epoch: number;
 }
 
@@ -38,7 +37,6 @@ export const INITIAL: GameRow = {
   paused: true,
   window_secs: 5,
   gap_secs: 2,
-  reveal_step: 0,
   team_epoch: 0
 };
 
@@ -59,12 +57,28 @@ export let normalizeRow = (row: Record<string, unknown>): GameRow =>
     round: Number(row.round),
     window_secs: Number(row.window_secs),
     gap_secs: Number(row.gap_secs),
-    reveal_step: Number(row.reveal_step),
     team_epoch: Number(row.team_epoch)
   }) as GameRow;
 
 export let newerRow = (prev: GameRow | null, next: GameRow): GameRow =>
   prev && next.round < prev.round ? prev : next;
+
+export interface TallyMsg {
+  round: number;
+  counts: [number, number][];
+}
+
+export let teamTally = (
+  g: GameRow,
+  now: number,
+  myTeam: Team | null,
+  msg: TallyMsg | null
+): Map<number, number> | undefined => {
+  let s = status(g, now);
+  if (s.kind !== "open" && s.kind !== "closing") return undefined;
+  if (s.team !== myTeam || msg?.round !== g.round) return undefined;
+  return new Map(msg.counts);
+};
 
 export const VOTE_GRACE_MS = 300;
 

@@ -4,10 +4,11 @@ import {
   joinGame,
   leaveGame,
   serverNow,
-  subscribeGame
+  subscribeGame,
+  subscribeTally
 } from "./api";
 import type { Team } from "./logic";
-import { type GameRow, newerRow } from "./state";
+import { type GameRow, newerRow, type TallyMsg } from "./state";
 
 const POLL_MS = 10_000;
 const SETTLE_MS = 1500;
@@ -38,6 +39,12 @@ export let useGame = (): GameRow | null => {
     };
   }, []);
   return row;
+};
+
+export let useTallyFeed = (): TallyMsg | null => {
+  let [msg, setMsg] = useState<TallyMsg | null>(null);
+  useEffect(() => subscribeTally(setMsg), []);
+  return msg;
 };
 
 export let useClockOffset = (): number => {

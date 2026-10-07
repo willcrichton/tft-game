@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { type Admin, admin, fetchVotes, teamCounts } from "./api";
+import {
+  type Admin,
+  admin,
+  fetchVotes,
+  openTallyBroadcast,
+  teamCounts
+} from "./api";
 import { GameScreen, RevealScreen, teamName } from "./components";
 import { useClockOffset, useGame, useNow } from "./hooks";
 import {
@@ -7,12 +13,18 @@ import {
   outcome,
   type Phase,
   pickMove,
-  revealSteps,
   TEAMS,
   type Team,
   tally
 } from "./logic";
-import { type GameRow, kindOf, movesOf, shouldResolve, status } from "./state";
+import {
+  type GameRow,
+  kindOf,
+  legalFor,
+  movesOf,
+  shouldResolve,
+  status
+} from "./state";
 
 const SECRET_KEY = "tft-admin-secret";
 
@@ -47,31 +59,49 @@ let useResolver = (api: Admin, g: GameRow | null, offset: number) => {
   }, [api, offset]);
 };
 
+const TALLY_POLL_MS = 300;
+const TALLY_RESEND_MS = 2000;
+
 let useTally = (g: GameRow | null, now: number) => {
   let [votes, setVotes] = useState<{ round: number; votes: number[] }>({
     round: -1,
     votes: []
   });
+  let broadcast = useRef<ReturnType<typeof openTallyBroadcast> | null>(null);
+  useEffect(() => {
+    broadcast.current = openTallyBroadcast();
+    return () => broadcast.current?.close();
+  }, []);
   let live = g ? ["open", "closing"].includes(status(g, now).kind) : false;
   let round = g?.round ?? -1;
   useEffect(() => {
-    if (!live) return;
+    if (!live || !g) return;
     let alive = true;
+    let legal = legalFor(g);
+    let last = { key: "", at: 0 };
     let poll = () =>
       fetchVotes(round)
-        .then(v => alive && setVotes({ round, votes: v }))
+        .then(v => {
+          if (!alive) return;
+          setVotes({ round, votes: v });
+          let counts = [...tally(v, legal)];
+          let key = JSON.stringify(counts);
+          let t = Date.now();
+          if (key !== last.key || t - last.at > TALLY_RESEND_MS) {
+            last = { key, at: t };
+            broadcast.current?.send({ round, counts });
+          }
+        })
         .catch(console.error);
     poll();
-    let id = setInterval(poll, 400);
+    let id = setInterval(poll, TALLY_POLL_MS);
     return () => {
       alive = false;
       clearInterval(id);
     };
   }, [live, round]);
   if (!g || votes.round !== g.round) return { counts: new Map(), total: 0 };
-  let kind = kindOf(g);
-  let legal = kind ? legalMoves(kind, movesOf(g, kind)) : [];
-  return { counts: tally(votes.votes, legal), total: votes.votes.length };
+  return { counts: tally(votes.votes, legalFor(g)), total: votes.votes.length };
 };
 
 let useTeamCounts = () => {
@@ -187,7 +217,6 @@ export let Controls = ({
   let kind = kindOf(g);
   let s = status(g, Date.now());
   let over = s.kind === "over";
-  let maxStep = revealSteps(g.ns_moves);
   let saveWindow = run(() => {
     let w = Number(windowSecs);
     if (!(w > 0)) return Promise.reject("Vote time must be positive");
@@ -245,32 +274,6 @@ export let Controls = ({
             <ConfirmButton onConfirm={run(api.restart)}>Restart</ConfirmButton>
           </div>
           <p className="hint">Space toggles play/pause.</p>
-        </section>
-      )}
-
-      {g.phase === "reveal" && (
-        <section>
-          <h2>
-            Reveal step {Math.min(g.reveal_step, maxStep)} / {maxStep}
-          </h2>
-          <div className="row">
-            <button
-              type="button"
-              disabled={g.reveal_step <= 0}
-              onClick={run(() => api.reveal(g.reveal_step - 1))}
-            >
-              ◀ Prev
-            </button>
-            <button
-              type="button"
-              className="primary"
-              disabled={g.reveal_step >= maxStep}
-              onClick={run(() => api.reveal(g.reveal_step + 1))}
-            >
-              Next ▶
-            </button>
-          </div>
-          <p className="hint">Arrow keys step through the reveal.</p>
         </section>
       )}
 
@@ -356,11 +359,6 @@ let useHotkeys = (api: Admin, g: GameRow | null) => {
       if (e.key === " " && kindOf(cur)) {
         e.preventDefault();
         (cur.paused ? api.play() : api.pause()).catch(console.error);
-      } else if (cur.phase === "reveal" && e.key === "ArrowRight") {
-        let max = revealSteps(cur.ns_moves);
-        api.reveal(Math.min(max, cur.reveal_step + 1)).catch(console.error);
-      } else if (cur.phase === "reveal" && e.key === "ArrowLeft") {
-        api.reveal(Math.max(0, cur.reveal_step - 1)).catch(console.error);
       }
     };
     window.addEventListener("keydown", onKey);

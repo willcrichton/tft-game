@@ -8,6 +8,7 @@ import {
   normalizeRow,
   shouldResolve,
   status,
+  teamTally,
   VOTE_GRACE_MS
 } from "../src/state";
 
@@ -119,9 +120,41 @@ describe("newerRow", () => {
   test("ignores rows from an older round", () => {
     let a = { ...INITIAL, round: 5 };
     let b = { ...INITIAL, round: 4 };
-    let c = { ...INITIAL, round: 5, reveal_step: 2 };
+    let c = { ...INITIAL, round: 5, paused: false };
     expect(newerRow(a, b)).toBe(a);
     expect(newerRow(a, c)).toBe(c);
     expect(newerRow(null, b)).toBe(b);
+  });
+});
+
+describe("teamTally", () => {
+  let msg = (round: number) => ({
+    round,
+    counts: [
+      [5, 3],
+      [2, 1]
+    ] as [number, number][]
+  });
+
+  test("voting team sees its tally during the window", () => {
+    expect(teamTally(running(), T0 + 1, "red", msg(0))).toEqual(
+      new Map([
+        [5, 3],
+        [2, 1]
+      ])
+    );
+  });
+
+  test("still visible while votes are being counted", () => {
+    expect(teamTally(running(), T0 + 5100, "red", msg(0))).toBeDefined();
+  });
+
+  test("other team, spectators, stale rounds and gaps see nothing", () => {
+    expect(teamTally(running(), T0 + 1, "blue", msg(0))).toBeUndefined();
+    expect(teamTally(running(), T0 + 1, null, msg(0))).toBeUndefined();
+    expect(teamTally(running(), T0 + 1, "red", msg(1))).toBeUndefined();
+    expect(teamTally(running(), T0 + 1, "red", null)).toBeUndefined();
+    let gap = running({ round_starts_at: iso(T0 + 1000) });
+    expect(teamTally(gap, T0, "blue", msg(0))).toBeUndefined();
   });
 });

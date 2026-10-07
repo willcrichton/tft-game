@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { castVote } from "./api";
 import { GameScreen, Lobby, RevealScreen, TeamBanner } from "./components";
-import { useClockOffset, useGame, useNow, usePlayer } from "./hooks";
+import {
+  useClockOffset,
+  useGame,
+  useNow,
+  usePlayer,
+  useTallyFeed
+} from "./hooks";
+import { teamTally } from "./state";
 
 const VOTE_ERRORS: Record<string, string> = {
   closed: "Too late, voting is closed.",
@@ -17,6 +24,7 @@ export let Student = () => {
   let { id, team } = usePlayer(g?.team_epoch);
   let [vote, setVote] = useState<{ round: number; move: number } | null>(null);
   let [error, setError] = useState<string | null>(null);
+  let tallyMsg = useTallyFeed();
 
   if (!g) return <div className="loading">Connecting…</div>;
 
@@ -47,6 +55,7 @@ export let Student = () => {
             now={now}
             myTeam={team}
             myVote={myVote}
+            tally={teamTally(g, now, team, tallyMsg)}
             onPick={onPick}
           />
         )}

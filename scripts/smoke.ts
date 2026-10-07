@@ -212,7 +212,6 @@ check(
 );
 
 await adm("set_phase", { p_phase: "reveal" });
-await adm("reveal", { p_step: 3 });
 check((await fetchRow()).phase === "reveal", "reveal phase");
 
 await sleep(1000);
@@ -220,7 +219,7 @@ let finalEvent = realtimeEvents[realtimeEvents.length - 1];
 let rounds = [...new Set(realtimeEvents.map(e => e.round))];
 let gaps = rounds.slice(1).filter((r, i) => r !== rounds[i] + 1);
 check(
-  realtimeEvents.length >= 20 && gaps.length === 0,
+  realtimeEvents.length >= 19 && gaps.length === 0,
   `realtime delivered ${realtimeEvents.length} updates, rounds contiguous`
 );
 check(

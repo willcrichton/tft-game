@@ -155,6 +155,15 @@ try {
           hasText: String(voters.length)
         })
         .waitFor({ timeout: 3000 });
+      await voters[voters.length - 1]
+        .locator(`.${tileClass}[data-move="${move}"] .tally-count`, {
+          hasText: String(voters.length)
+        })
+        .waitFor({ timeout: 3000 });
+      check(
+        (await others[0].locator(".tally").count()) === 0,
+        `move ${i + 1}: ${team} sees its live tally, other team does not`
+      );
       await tile(others[0])
         .and(others[0].locator(`.${team}`))
         .waitFor({ timeout: 10_000 });
@@ -192,19 +201,15 @@ try {
 
   console.log("Reveal");
   await admin.getByRole("button", { name: "Reveal" }).click();
-  await students[0]
-    .getByText("Here's the tic-tac-toe game you just played.")
-    .waitFor();
-  await admin.keyboard.press("ArrowRight");
-  await students[0].getByText(/Every row, column, and diagonal/).waitFor();
-  for (let i = 0; i < 6; i++) {
-    await admin.getByRole("button", { name: "Next ▶" }).click();
-    await admin.getByText(`Reveal step ${i + 2} /`).waitFor();
-  }
-  await students[0].getByText(/same game all along/).waitFor({ timeout: 5000 });
+  await students[0].locator(".board .magic").first().waitFor();
   check(
-    (await students[0].locator(".board .winning").count()) === 3,
-    "reveal highlights winning line on board"
+    (await students[0].locator(".board .magic").count()) === 9,
+    "reveal overlays all nine magic numbers"
+  );
+  check(
+    (await students[0].locator(".screen p").count()) === 0 &&
+      (await admin.getByRole("button", { name: /Next|Prev/ }).count()) === 0,
+    "reveal has no caption or step controls"
   );
   await students[0].screenshot({ path: `${SHOTS}/student-reveal.png` });
 

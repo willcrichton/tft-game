@@ -276,11 +276,10 @@ describe.each([
   test("reset_all returns to lobby", async () => {
     await join();
     await call("admin_set_phase", SECRET, "reveal");
-    await call("admin_reveal", SECRET, 3);
     await call("admin_reset_all", SECRET, false);
     let g = await game();
     expect(g.phase).toBe("lobby");
-    expect(g.reveal_step).toBe(0);
+    expect(g).not.toHaveProperty("reveal_step");
     let counts = await teamCounts();
     expect(counts.red + counts.blue).toBe(1);
     let total = await asSuper(() =>

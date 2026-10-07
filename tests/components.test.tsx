@@ -6,7 +6,6 @@ import {
   GameScreen,
   NumberStrip,
   RevealScreen,
-  revealCaption,
   statusText
 } from "../src/components";
 import { type GameRow, INITIAL } from "../src/state";
@@ -76,6 +75,12 @@ describe("GameScreen", () => {
     fireEvent.click(tile(container, 5));
     expect(onPick).toHaveBeenCalledWith(5);
     expect(screen.getByTestId("status").textContent).toContain("Vote now: 5s");
+  });
+
+  test("no rules text under the header", () => {
+    let { container } = render(<GameScreen g={open()} now={T0} myTeam="red" />);
+    expect(container.querySelector("h1")?.textContent).toBe("Pick 15");
+    expect(container.querySelector("p")).toBeNull();
   });
 
   test("in-progress number game never highlights a winning triple", () => {
@@ -158,42 +163,20 @@ describe("RevealScreen", () => {
     phase: "reveal",
     ns_moves: [2, 1, 6, 3, 7],
     ns_result: "red",
-    ttt_moves: [0, 4, 8]
+    ttt_moves: [0, 4, 1, 8, 2]
   };
 
-  test("step 0 shows the ttt game without numbers", () => {
-    render(<RevealScreen g={g} />);
-    expect(screen.getByTestId("board").textContent).toBe("XOX");
+  test("overlays the magic square on the final ttt board and nothing else", () => {
+    let { container } = render(<RevealScreen g={g} />);
+    expect(screen.getByTestId("board").textContent).toBe("X2X7X69O5143O8");
+    expect(container.textContent).toBe("Tic-tac-toe" + "X2X7X69O5143O8");
   });
 
-  test("step 1 overlays the magic square on the ttt game", () => {
-    render(<RevealScreen g={{ ...g, reveal_step: 1 }} />);
-    expect(screen.getByTestId("board").textContent).toBe("X2769O5143X8");
-  });
-
-  test("replay maps numbers to their magic-square cells", () => {
-    let { container } = render(<RevealScreen g={{ ...g, reveal_step: 6 }} />);
-    let board = screen.getByTestId("board");
-    let cellOf = (n: number) =>
-      board.querySelector(
-        `[data-move="${[2, 7, 6, 9, 5, 1, 4, 3, 8].indexOf(n)}"]`
-      )!;
-    expect(cellOf(2).className).toContain("red");
-    expect(cellOf(1).className).toContain("blue");
-    expect(cellOf(6).className).toContain("red");
-    expect(cellOf(3).className).toContain("blue");
-    expect(container.querySelectorAll(".winning").length).toBe(0);
-  });
-
-  test("final step highlights the winning triple on both representations", () => {
-    let { container } = render(<RevealScreen g={{ ...g, reveal_step: 7 }} />);
-    expect(container.querySelectorAll(".strip .winning").length).toBe(3);
-    let cells = [...container.querySelectorAll(".board .winning")].map(
+  test("highlights the ttt winning line", () => {
+    let { container } = render(<RevealScreen g={g} />);
+    let cells = [...container.querySelectorAll(".winning")].map(
       e => (e as HTMLElement).dataset.move
     );
     expect(cells).toEqual(["0", "1", "2"]);
-    expect(revealCaption({ ...g, reveal_step: 7 })).toContain(
-      "same game all along"
-    );
   });
 });

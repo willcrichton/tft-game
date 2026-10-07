@@ -85,19 +85,12 @@ button:disabled {
   font-size: clamp(2rem, 5vw, 3rem);
 }
 
-.rules,
-.caption {
+.rules {
   margin: 0;
   max-width: 44rem;
   font-size: 1.15rem;
   line-height: 1.5;
   color: var(--muted);
-}
-
-.caption {
-  color: var(--ink);
-  font-size: 1.3rem;
-  min-height: 3.9em;
 }
 
 .status {
@@ -317,18 +310,6 @@ button:disabled {
   color: var(--muted);
 }
 
-.reveal {
-  --tile: clamp(34px, 7vw, 64px);
-  --cell: clamp(76px, 16vw, 120px);
-}
-
-.reveal-row {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  align-items: center;
-}
-
 .error {
   margin: 1rem auto 0;
   max-width: 36rem;
@@ -349,7 +330,7 @@ button:disabled {
   container-type: inline-size;
 }
 
-.projector .screen:not(.reveal) {
+.projector .screen {
   --tile: clamp(40px, 8.5cqw, 110px);
   --cell: clamp(84px, 20cqw, 150px);
 }

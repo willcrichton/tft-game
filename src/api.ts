@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./config";
 import type { Result, Team } from "./logic";
-import { type GameRow, normalizeRow } from "./state";
+import { type GameRow, normalizeRow, type TallyMsg } from "./state";
 
 let client: SupabaseClient | null = null;
 
@@ -44,6 +44,30 @@ export let subscribeGame = (
     });
   return () => {
     supabase().removeChannel(channel);
+  };
+};
+
+const TALLY_CHANNEL = "tally";
+
+export let subscribeTally = (onTally: (msg: TallyMsg) => void) => {
+  let channel = supabase()
+    .channel(TALLY_CHANNEL)
+    .on("broadcast", { event: "tally" }, m => onTally(m.payload as TallyMsg))
+    .subscribe();
+  return () => {
+    supabase().removeChannel(channel);
+  };
+};
+
+export let openTallyBroadcast = () => {
+  let channel = supabase().channel(TALLY_CHANNEL);
+  channel.subscribe();
+  return {
+    send: (msg: TallyMsg) =>
+      channel.send({ type: "broadcast", event: "tally", payload: msg }),
+    close: () => {
+      supabase().removeChannel(channel);
+    }
   };
 };
 
@@ -98,8 +122,6 @@ export let admin = (secret: string) => ({
       p_window_secs: windowSecs,
       p_gap_secs: gapSecs
     }),
-  reveal: (step: number) =>
-    rpc<void>("admin_reveal", { p_secret: secret, p_step: step }),
   reshuffle: () => rpc<void>("admin_reshuffle", { p_secret: secret }),
   resetAll: (clearPlayers: boolean) =>
     rpc<void>("admin_reset_all", {

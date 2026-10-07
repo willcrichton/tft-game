@@ -1,6 +1,6 @@
 # Pick 15 / Tic-tac-toe
 
-A live classroom demo of problem isomorphs. Students are split into Red and Blue teams and play Pick 15, collectively voting on each move Twitch-Plays-style. Next they play tic-tac-toe. The reveal overlays the magic square on the board and replays the Pick 15 game as tic-tac-toe.
+A live classroom demo of problem isomorphs. Students are split into Red and Blue teams and play Pick 15, collectively voting on each move Twitch-Plays-style. Next they play tic-tac-toe. The reveal overlays the magic square on the tic-tac-toe board.
 
 - Students: https://willcrichton.net/tft-game/
 - Instructor: https://willcrichton.net/tft-game/#admin
@@ -20,9 +20,9 @@ A live classroom demo of problem isomorphs. Students are split into Red and Blue
 1. Open `#admin` and share that screen. The lobby shows the join URL and team counts.
 2. **Pick 15** → **▶ Play** (or Space). Voting windows alternate between teams on their own. When a window closes, the plurality choice is played; ties are broken at random, and if nobody voted a random legal move is played. **Undo** and **Restart** are there for mishaps.
 3. **Tic-tac-toe** → **▶ Play**.
-4. **Reveal** → **Next ▶** (or →): first the final tic-tac-toe board, then the magic-square overlay, then a move-by-move replay of the Pick 15 game on the board.
+4. **Reveal**: the magic square fades in over the final tic-tac-toe board.
 
-The admin tab tallies the votes and advances rounds, so keep it open and in the foreground while playing.
+The admin tab tallies the votes, broadcasts each team's live tally to that team, and advances rounds, so keep it open and in the foreground while playing.
 
 ## Pre-class check
 
