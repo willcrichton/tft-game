@@ -76,6 +76,11 @@ check(
 
 await adm("reset_all", { p_clear_players: true });
 await adm("settings", { p_window_secs: 1.5, p_gap_secs: 0.3 });
+await sleep(2000);
+let total = (c: Record<Team, number>) => c.red + c.blue;
+let baseline = total(await rpc<Record<Team, number>>("team_counts"));
+if (baseline > 0)
+  console.log(`  (${baseline} other connected players present)`);
 
 let students: { id: string; team: Team }[] = [];
 for (let i = 0; i < 6; i++) {
@@ -84,9 +89,20 @@ for (let i = 0; i < 6; i++) {
 }
 let counts = await rpc<Record<Team, number>>("team_counts");
 check(
-  counts.red === 3 && counts.blue === 3,
+  total(counts) === baseline + 6 && Math.abs(counts.red - counts.blue) <= 1,
   `teams balanced ${JSON.stringify(counts)}`
 );
+
+await rpc("leave_game", { p_player: students[0].id });
+let afterLeave = await rpc<Record<Team, number>>("team_counts");
+check(total(afterLeave) === baseline + 5, "leaving drops the count");
+check(
+  (await rpc<Team>("join_game", { p_player: students[0].id })) ===
+    students[0].team,
+  "rejoining keeps the same team"
+);
+let afterRejoin = await rpc<Record<Team, number>>("team_counts");
+check(total(afterRejoin) === baseline + 6, "rejoining restores the count");
 
 let play = async (kind: GameKind, plan: number[]) => {
   await adm("set_phase", { p_phase: kind });
@@ -112,7 +128,9 @@ let play = async (kind: GameKind, plan: number[]) => {
     let target = plan[moves.length];
     let decoy = legal.find(m => m !== target)!;
     if (moveIdx === moves.length) {
-      let votes = [target, target, decoy];
+      let votes = mine.map((_, i) =>
+        mine.length > 2 && i === mine.length - 1 ? decoy : target
+      );
       let results = await Promise.all(
         mine.map((s, i) =>
           rpc<string>("cast_vote", {
@@ -148,7 +166,10 @@ let play = async (kind: GameKind, plan: number[]) => {
       p_round: g.round,
       p_choice: target
     });
-    check(late === "closed", "late vote rejected");
+    check(
+      late === "closed" || late === "not_playing",
+      `late vote rejected (${late})`
+    );
     let { data } = await sb.from("votes").select("choice").eq("round", g.round);
     let choice = pickMove(
       data!.map(v => v.choice as number),
@@ -160,7 +181,13 @@ let play = async (kind: GameKind, plan: number[]) => {
       p_choice: choice,
       p_result: outcome(kind, [...moves, choice]).result
     });
-    check(applied === true, "move applied");
+    let after = await fetchRow();
+    let afterMoves = kind === "ns" ? after.ns_moves : after.ttt_moves;
+    check(
+      afterMoves.length === moves.length + 1 &&
+        afterMoves[moves.length] === target,
+      applied ? "move applied" : "move applied (by an open admin tab)"
+    );
     let stale = await adm("apply", {
       p_round: g.round,
       p_choice: decoy,

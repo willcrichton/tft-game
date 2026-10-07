@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchGame, joinGame, serverNow, subscribeGame } from "./api";
+import {
+  fetchGame,
+  joinGame,
+  leaveGame,
+  serverNow,
+  subscribeGame
+} from "./api";
 import type { Team } from "./logic";
 import { type GameRow, newerRow } from "./state";
 
 const POLL_MS = 10_000;
 const SETTLE_MS = 1500;
+const HEARTBEAT_MS = 20_000;
 
 export let useGame = (): GameRow | null => {
   let [row, setRow] = useState<GameRow | null>(null);
@@ -83,7 +90,20 @@ export let usePlayer = (
   let [team, setTeam] = useState<Team | null>(null);
   useEffect(() => {
     if (epoch === undefined) return;
-    joinGame(id).then(setTeam).catch(console.error);
+    let join = () => joinGame(id).then(setTeam).catch(console.error);
+    let onVisible = () => document.visibilityState === "visible" && join();
+    let onHide = () => leaveGame(id).catch(() => {});
+    join();
+    let beat = setInterval(join, HEARTBEAT_MS);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", join);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      clearInterval(beat);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", join);
+      window.removeEventListener("pagehide", onHide);
+    };
   }, [id, epoch]);
   return { id, team };
 };

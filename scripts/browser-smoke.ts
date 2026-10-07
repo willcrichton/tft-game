@@ -73,6 +73,24 @@ try {
     "both timing settings persist"
   );
 
+  let waitTotal = (n: number) =>
+    admin.waitForFunction(
+      n =>
+        [...document.querySelectorAll(".team-counts.big span")]
+          .map(e => Number(e.textContent))
+          .reduce((a, b) => a + b, 0) === n,
+      n,
+      { timeout: 10_000 }
+    );
+  await admin.waitForTimeout(3500);
+  let baseline = await admin.evaluate(() =>
+    [...document.querySelectorAll(".team-counts.big span")]
+      .map(e => Number(e.textContent))
+      .reduce((a, b) => a + b, 0)
+  );
+  if (baseline > 0)
+    console.log(`  (${baseline} other connected players present)`);
+
   let students = await Promise.all([0, 1, 2, 3].map(() => newPage()));
   pages.push(...students);
   for (let s of students)
@@ -85,14 +103,24 @@ try {
     )
   );
   check(
-    teams.filter(t => t === "red").length === 2,
-    `students split 2/2 (${teams.join(",")})`
+    teams.includes("red") && teams.includes("blue"),
+    `students on both teams (${teams.join(",")})`
   );
-  await admin
-    .locator(".team-count.red span", { hasText: "2" })
-    .first()
-    .waitFor();
+  await waitTotal(baseline + 4);
   check(true, "admin lobby shows team counts");
+
+  let extra = await newPage();
+  await extra.getByText(/You're on Team/).waitFor();
+  await waitTotal(baseline + 5);
+  await extra.close();
+  await waitTotal(baseline + 4);
+  check(true, "closing a tab drops it from the admin count");
+  let reloaded = students[0];
+  await reloaded.reload();
+  await reloaded
+    .getByText(`You're on Team ${teams[0] === "red" ? "Red" : "Blue"}`)
+    .waitFor();
+  check(true, "refresh keeps the same team");
 
   let playGame = async (
     button: string,
@@ -124,7 +152,7 @@ try {
       await tile(voters[0]).and(voters[0].locator(".voted")).waitFor();
       await admin
         .locator(`.${tileClass}[data-move="${move}"] .tally-count`, {
-          hasText: "2"
+          hasText: String(voters.length)
         })
         .waitFor({ timeout: 3000 });
       await tile(others[0])
@@ -187,10 +215,7 @@ try {
   await admin.getByLabel("Pause between turns").blur();
   await admin.getByLabel("Also forget all players").check();
   await confirm(admin, "Reset everything");
-  await admin
-    .locator(".team-count.red span", { hasText: "0" })
-    .first()
-    .waitFor();
+  await waitTotal(baseline);
   console.log("reset to lobby");
   console.log("BROWSER SMOKE PASSED");
 } catch (e) {

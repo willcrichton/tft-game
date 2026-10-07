@@ -76,6 +76,61 @@ describe.each([
     expect(await teamCounts()).toEqual({ red: 2, blue: 2 });
   });
 
+  let disconnect = (id: string) =>
+    asSuper(() =>
+      anon.query(
+        "update players set last_seen = now() - interval '5 minutes' where id = $1",
+        [id]
+      )
+    );
+
+  test("team counts only include connected players", async () => {
+    let { red, blue } = await joinTeams();
+    await disconnect(blue.id);
+    expect(await teamCounts()).toEqual({ red: 1, blue: 0 });
+    await call("leave_game", red.id);
+    expect(await teamCounts()).toEqual({ red: 0, blue: 0 });
+  });
+
+  test("new players balance against connected players only", async () => {
+    let { red, blue } = await joinTeams();
+    await disconnect(blue.id);
+    expect((await join()).team).toBe("blue");
+    await disconnect(red.id);
+    let { blue: b2 } = await joinTeams();
+    await disconnect(b2.id);
+    expect(await teamCounts()).toEqual({ red: 1, blue: 1 });
+  });
+
+  test("returning players keep their team and count again", async () => {
+    let { red, blue } = await joinTeams();
+    await call("leave_game", red.id);
+    await disconnect(blue.id);
+    for (let i = 0; i < 3; i++) await join();
+    expect(await call("join_game", red.id)).toBe("red");
+    expect(await call("join_game", blue.id)).toBe("blue");
+    let counts = await teamCounts();
+    expect(counts.red + counts.blue).toBe(5);
+  });
+
+  test("reshuffle leaves disconnected players alone", async () => {
+    let ps = await Promise.all([join(), join(), join(), join(), join()]);
+    let gone = ps.slice(0, 3);
+    for (let p of gone) await disconnect(p.id);
+    let before = await asSuper(() =>
+      anon.query("select id, team from players order by id")
+    );
+    for (let i = 0; i < 5; i++) await call("admin_reshuffle", SECRET);
+    let after = await asSuper(() =>
+      anon.query("select id, team from players order by id")
+    );
+    let teamOf = (rows: Record<string, unknown>[], id: string) =>
+      rows.find(r => r.id === id)?.team;
+    for (let p of gone)
+      expect(teamOf(after.rows, p.id)).toBe(teamOf(before.rows, p.id));
+    expect(await teamCounts()).toEqual({ red: 1, blue: 1 });
+  });
+
   test("anon cannot write tables directly or read secrets", async () => {
     await expect(
       anon.query("update game set phase = 'reveal' where id = 1")

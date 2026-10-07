@@ -23,6 +23,8 @@ create table if not exists public.players (
   created_at timestamptz not null default now()
 );
 
+alter table public.players add column if not exists last_seen timestamptz default now();
+
 create table if not exists public.votes (
   round int not null,
   player_id uuid not null references public.players (id) on delete cascade,
@@ -88,6 +90,11 @@ $$;
 create or replace function public.server_now() returns timestamptz
 language sql stable as $$ select now() $$;
 
+create or replace function public.is_connected(last_seen timestamptz) returns boolean
+language sql stable as $$
+  select last_seen > now() - interval '120 seconds'
+$$;
+
 create or replace function public.join_game(p_player uuid) returns text
 language plpgsql security definer set search_path = public as $$
 declare
@@ -95,20 +102,21 @@ declare
   r int;
   b int;
 begin
-  select team into t from players where id = p_player;
+  update players set last_seen = now() where id = p_player returning team into t;
   if t is not null then
     return t;
   end if;
   perform pg_advisory_xact_lock(15);
   select count(*) filter (where team = 'red'), count(*) filter (where team = 'blue')
-    into r, b from players;
+    into r, b from players where is_connected(last_seen);
   t := case
     when r < b then 'red'
     when b < r then 'blue'
     when random() < 0.5 then 'red'
     else 'blue'
   end;
-  insert into players (id, team) values (p_player, t) on conflict (id) do nothing;
+  insert into players (id, team, last_seen) values (p_player, t, now())
+    on conflict (id) do update set last_seen = now();
   select team into t from players where id = p_player;
   return t;
 end $$;
@@ -118,7 +126,12 @@ language sql stable security definer set search_path = public as $$
   select json_build_object(
     'red', count(*) filter (where team = 'red'),
     'blue', count(*) filter (where team = 'blue')
-  ) from players
+  ) from players where is_connected(last_seen)
+$$;
+
+create or replace function public.leave_game(p_player uuid) returns void
+language sql security definer set search_path = public as $$
+  update players set last_seen = null where id = p_player
 $$;
 
 create or replace function public.cast_vote(p_player uuid, p_round int, p_choice int) returns text
@@ -284,7 +297,10 @@ declare
   flip int := (random() < 0.5)::int;
 begin
   perform assert_admin(p_secret);
-  with s as (select id, row_number() over (order by random()) as rn from players)
+  with s as (
+    select id, row_number() over (order by random()) as rn
+    from players where is_connected(last_seen)
+  )
   update players p set team = case when (s.rn + flip) % 2 = 0 then 'red' else 'blue' end
   from s where p.id = s.id;
   update game set

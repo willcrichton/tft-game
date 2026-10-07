@@ -59,6 +59,16 @@ export let fetchVotes = async (round: number): Promise<number[]> => {
 export let serverNow = () => rpc<string>("server_now");
 export let joinGame = (player: string) =>
   rpc<Team>("join_game", { p_player: player });
+export let leaveGame = (player: string) =>
+  fetch(`${SUPABASE_URL}/rest/v1/rpc/leave_game`, {
+    method: "POST",
+    keepalive: true,
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ p_player: player })
+  });
 export let teamCounts = () => rpc<Record<Team, number>>("team_counts");
 export let castVote = (player: string, round: number, choice: number) =>
   rpc<string>("cast_vote", {
